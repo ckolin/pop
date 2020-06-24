@@ -13,47 +13,55 @@ import (
 	"github.com/fogleman/gg"
 )
 
-type Dna struct {
+const populationSize = 400
+const geneLength = 16
+const mutationRate = 0.02
+const generations = 1000
+
+type Shape struct {
 	x, y, s float64
 	r, g, b float64
-	f       float64
 }
 
-func mid(a, b float64) float64 {
-	return (a + b) / 2.0
+type Dna struct {
+	genes []Shape
+	f     float64
 }
 
 func (a *Dna) Combine(b *Dna) Dna {
-	return Dna{
-		x: mid(a.x, b.x),
-		y: mid(a.y, b.y),
-		s: mid(a.s, b.s),
-		r: mid(a.r, b.r),
-		g: mid(a.g, b.g),
-		b: mid(a.b, b.b),
-	}
-}
+	fac := rand.Float64()
 
-func mut(val float64) float64 {
-	val += (rand.Float64() - 0.5) * 0.2
-	return math.Min(1.0, math.Max(0.0, val))
+	c := Dna{
+		genes: make([]Shape, len(a.genes)),
+	}
+
+	for i := 0; i < geneLength; i++ {
+		if rand.Float64() < fac {
+			c.genes[i] = a.genes[i]
+		} else {
+			c.genes[i] = b.genes[i]
+		}
+	}
+
+	return c
 }
 
 func (dna *Dna) Mutate() {
-	// Change values randomly
-	dna.x = mut(dna.x)
-	dna.y = mut(dna.y)
-	dna.s = mut(dna.s)
-	dna.r = mut(dna.r)
-	dna.g = mut(dna.g)
-	dna.b = mut(dna.b)
+	for i := range dna.genes {
+		if rand.Float64() < mutationRate {
+			dna.genes[i] = generateShape()
+		}
+	}
 }
 
 func (dna *Dna) Render(dc *gg.Context) {
 	bounds := dc.Image().Bounds()
-	dc.DrawCircle(dna.x*float64(bounds.Dx()), dna.y*float64(bounds.Dy()), dna.s*float64(bounds.Dx()))
-	dc.SetRGBA(dna.r, dna.g, dna.b, 0.9)
-	dc.Fill()
+	for i := range dna.genes {
+		shape := dna.genes[i]
+		dc.DrawCircle(shape.x*float64(bounds.Dx()), shape.y*float64(bounds.Dy()), shape.s*float64(bounds.Dx()))
+		dc.SetRGBA(shape.r, shape.g, shape.b, 0.6)
+		dc.Fill()
+	}
 }
 
 func main() {
@@ -72,55 +80,71 @@ func main() {
 
 	rand.Seed(time.Now().UTC().UnixNano())
 
-	for element := 0; element < 30; element++ {
-		// Initialize random population
-		pop := make([]Dna, 20)
-		for i := 0; i < len(pop); i++ {
-			pop[i] = Dna{
-				x: rand.Float64(),
-				y: rand.Float64(),
-				s: rand.Float64(),
-				r: rand.Float64(),
-				g: rand.Float64(),
-				b: rand.Float64(),
-			}
+	// Initialize random population
+	pop := make([]Dna, populationSize)
+	for i := range pop {
+		pop[i] = generateDna()
+	}
+
+	for gen := 1; gen <= generations; gen++ {
+		// Calculate fitness
+		total := 0.0
+		for i := range pop {
+			test := gg.NewContextForImage(dc.Image())
+			pop[i].Render(test)
+			pop[i].f = rate(test.Image(), goal)
+			total += pop[i].f
+		}
+		sum := 0.0
+		for i := range pop {
+			pop[i].f /= total
+			sum += pop[i].f
+			pop[i].f = sum
+		}
+		sort.Slice(pop, func(i, j int) bool {
+			return pop[i].f < pop[j].f
+		})
+
+		if gen%10 == 0 {
+			out := gg.NewContextForImage(dc.Image())
+			pop[populationSize-1].Render(out)
+			out.SavePNG("out/gen" + strconv.Itoa(gen) + ".png")
 		}
 
-		for gen := 0; gen < 100; gen++ {
-			// Calculate fitness
-			total := 0.0
-			for i := range pop {
-				test := gg.NewContextForImage(dc.Image())
-				pop[i].Render(test)
-				pop[i].f = rate(test.Image(), goal)
-				total += pop[i].f
-			}
-			sum := 0.0
-			for i := range pop {
-				pop[i].f /= total
-				sum += pop[i].f
-				pop[i].f = sum
-			}
-			sort.Slice(pop, func(i, j int) bool {
-				return pop[i].f < pop[j].f
-			})
-
-			// Create new population
-			new := make([]Dna, len(pop))
-			for i := range new {
-				// Pick two parents
-				mom := pick(pop)
-				dad := pick(pop)
-				dna := mom.Combine(dad)
-				dna.Mutate()
-				new[i] = dna
-			}
-			pop = new
+		// Create new population
+		new := make([]Dna, len(pop))
+		for i := range new {
+			// Pick two parents
+			mom := pick(pop)
+			dad := pick(pop)
+			dna := mom.Combine(dad)
+			dna.Mutate()
+			new[i] = dna
 		}
+		pop = new
+	}
+}
 
-		choice := pop[rand.Int()%len(pop)]
-		choice.Render(dc)
-		dc.SavePNG("out/" + strconv.Itoa(element) + ".png")
+func generateDna() Dna {
+	dna := Dna{
+		genes: make([]Shape, geneLength),
+	}
+
+	for i := range dna.genes {
+		dna.genes[i] = generateShape()
+	}
+
+	return dna
+}
+
+func generateShape() Shape {
+	return Shape{
+		x: rand.Float64(),
+		y: rand.Float64(),
+		s: rand.Float64() * 0.5,
+		r: rand.Float64(),
+		g: rand.Float64(),
+		b: rand.Float64(),
 	}
 }
 
@@ -141,11 +165,12 @@ func rate(img, goal image.Image) float64 {
 	score := 0.0
 	for y := 0; y < bounds.Dy(); y++ {
 		for x := 0; x < bounds.Dx(); x++ {
-			error := dist(img.At(x, y), goal.At(x, y)) / maxDist
-			score += 1.0 - math.Pow(error, 2)
+			err := dist(img.At(x, y), goal.At(x, y)) / maxDist
+			score += 1.0 - err
 		}
 	}
-	return score / float64(count)
+	score /= float64(count)
+	return math.Pow(score, 2)
 }
 
 func dist(a, b color.Color) float64 {
