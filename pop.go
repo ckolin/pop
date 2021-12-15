@@ -6,7 +6,6 @@ import (
 	"image/color"
 	"math"
 	"math/rand"
-	"sort"
 	"strconv"
 	"time"
 
@@ -58,8 +57,11 @@ func (dna *Dna) Render(dc *gg.Context) {
 	bounds := dc.Image().Bounds()
 	for i := range dna.genes {
 		shape := dna.genes[i]
-		dc.DrawCircle(shape.x*float64(bounds.Dx()), shape.y*float64(bounds.Dy()), shape.s*float64(bounds.Dx()))
-		dc.SetRGBA(shape.r, shape.g, shape.b, 0.6)
+		dc.DrawCircle(
+			shape.x*float64(bounds.Dx()),
+			shape.y*float64(bounds.Dy()),
+			shape.s*float64(bounds.Dy()),
+		)
 		dc.Fill()
 	}
 }
@@ -92,18 +94,17 @@ func main() {
 		for i := range pop {
 			test := gg.NewContextForImage(dc.Image())
 			pop[i].Render(test)
-			pop[i].f = rate(test.Image(), goal)
+			pop[i].f = fitness(test.Image(), goal)
 			total += pop[i].f
 		}
+
+		// Arrange for selection
 		sum := 0.0
 		for i := range pop {
 			pop[i].f /= total
 			sum += pop[i].f
 			pop[i].f = sum
 		}
-		sort.Slice(pop, func(i, j int) bool {
-			return pop[i].f < pop[j].f
-		})
 
 		if gen%10 == 0 {
 			out := gg.NewContextForImage(dc.Image())
@@ -158,7 +159,7 @@ func pick(pop []Dna) *Dna {
 	panic("error in fitness calculation")
 }
 
-func rate(img, goal image.Image) float64 {
+func fitness(img, goal image.Image) float64 {
 	bounds := goal.Bounds()
 	count := bounds.Dx() * bounds.Dy()
 	maxDist := dist(color.White, color.Black)
@@ -176,12 +177,13 @@ func rate(img, goal image.Image) float64 {
 func dist(a, b color.Color) float64 {
 	ra, ga, ba := floatParts(a)
 	rb, gb, bb := floatParts(b)
-	return math.Pow(float64(rb-ra), 2) + math.Pow(float64(gb-ga), 2) + math.Pow(float64(bb-ba), 2)
+	return math.Pow(math.Abs(rb-ra)+math.Abs(gb-ga)+math.Abs(bb-ba), 2)
 }
 
 func floatParts(col color.Color) (float64, float64, float64) {
+	m := 65536.0
 	r, g, b, _ := col.RGBA()
-	return float64(r) / 65536.0, float64(g) / 65536.0, float64(b) / 65536.0
+	return float64(r) / m, float64(g) / m, float64(b) / m
 }
 
 func parseArgs() string {
