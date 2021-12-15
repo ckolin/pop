@@ -12,9 +12,9 @@ import (
 	"github.com/fogleman/gg"
 )
 
-const populationSize = 50
-const geneLength = 4
-const mutationRate = 0.1
+const populationSize = 300
+const geneLength = 3
+const mutationRate = 0.03
 const generations = 10000
 
 type Shape struct {
@@ -46,9 +46,28 @@ func (a *Dna) Combine(b *Dna) Dna {
 func (dna *Dna) Mutate() {
 	for i := range dna.genes {
 		if rand.Float64() < mutationRate {
-			dna.genes[i] = generateShape()
+			mutateFloat(&dna.genes[i].x)
+		}
+		if rand.Float64() < mutationRate {
+			mutateFloat(&dna.genes[i].y)
+		}
+		if rand.Float64() < mutationRate {
+			mutateFloat(&dna.genes[i].s)
+		}
+		if rand.Float64() < mutationRate {
+			mutateFloat(&dna.genes[i].r)
+		}
+		if rand.Float64() < mutationRate {
+			mutateFloat(&dna.genes[i].g)
+		}
+		if rand.Float64() < mutationRate {
+			mutateFloat(&dna.genes[i].b)
 		}
 	}
+}
+
+func mutateFloat(f *float64) {
+	*f = math.Max(0, math.Min(1, *f+(rand.Float64()-0.5)))
 }
 
 func (dna *Dna) Render(dc *gg.Context) {
@@ -76,7 +95,7 @@ func main() {
 
 	// Create starting canvas
 	dc := gg.NewContext(bounds.Dx(), bounds.Dy())
-	dc.SetRGB(0, 0, 0)
+	dc.SetRGB(0.5, 0.5, 0.5)
 	dc.Clear()
 
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -122,15 +141,18 @@ func main() {
 		// Create new population
 		new := make([]Dna, len(pop))
 		for i := range new {
-			// Pick two parents
-			mom := pick(pop)
-			dad := pick(pop)
-			dna := mom.Combine(dad)
+			dna := pick(pop).Combine(pick(pop))
 			dna.Mutate()
 			new[i] = dna
 		}
 		pop = new
 	}
+}
+
+func parseArgs() string {
+	inPtr := flag.String("i", "in.jpg", "input file")
+	flag.Parse()
+	return *inPtr
 }
 
 func generateDna() Dna {
@@ -149,7 +171,7 @@ func generateShape() Shape {
 	return Shape{
 		x: rand.Float64(),
 		y: rand.Float64(),
-		s: rand.Float64()*0.5 + 0.1,
+		s: rand.Float64() * 0.5,
 		r: rand.Float64(),
 		g: rand.Float64(),
 		b: rand.Float64(),
@@ -174,27 +196,21 @@ func fitness(img, goal image.Image) float64 {
 	for y := 0; y < bounds.Dy(); y++ {
 		for x := 0; x < bounds.Dx(); x++ {
 			err := dist(img.At(x, y), goal.At(x, y)) / maxDist
-			score += 1.0 - err
+			score += math.Pow(err, 2)
 		}
 	}
 	score /= float64(count)
-	return math.Pow(score, 2)
+	return 1.0 / score
 }
 
 func dist(a, b color.Color) float64 {
 	ra, ga, ba := floatParts(a)
 	rb, gb, bb := floatParts(b)
-	return math.Pow(math.Abs(rb-ra)+math.Abs(gb-ga)+math.Abs(bb-ba), 2)
+	return math.Abs(rb-ra) + math.Abs(gb-ga) + math.Abs(bb-ba)
 }
 
 func floatParts(col color.Color) (float64, float64, float64) {
 	m := 65536.0
 	r, g, b, _ := col.RGBA()
 	return float64(r) / m, float64(g) / m, float64(b) / m
-}
-
-func parseArgs() string {
-	inPtr := flag.String("i", "in.jpg", "input file")
-	flag.Parse()
-	return *inPtr
 }
