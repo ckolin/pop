@@ -13,13 +13,13 @@ import (
 )
 
 const populationSize = 300
-const geneLength = 3
+const geneLength = 6
 const mutationRate = 0.03
-const generations = 10000
+const generations = 16384
 
 type Shape struct {
-	x, y, s float64
-	r, g, b float64
+	x, y, w, h float64
+	r, g, b    float64
 }
 
 type Dna struct {
@@ -52,7 +52,10 @@ func (dna *Dna) Mutate() {
 			mutateFloat(&dna.genes[i].y)
 		}
 		if rand.Float64() < mutationRate {
-			mutateFloat(&dna.genes[i].s)
+			mutateFloat(&dna.genes[i].w)
+		}
+		if rand.Float64() < mutationRate {
+			mutateFloat(&dna.genes[i].h)
 		}
 		if rand.Float64() < mutationRate {
 			mutateFloat(&dna.genes[i].r)
@@ -74,10 +77,11 @@ func (dna *Dna) Render(dc *gg.Context) {
 	bounds := dc.Image().Bounds()
 	for i := range dna.genes {
 		shape := dna.genes[i]
-		dc.DrawCircle(
-			shape.x*float64(bounds.Dx()),
-			shape.y*float64(bounds.Dy()),
-			shape.s*float64(bounds.Dy()),
+		dc.DrawRectangle(
+			(shape.x-shape.w/2.0)*float64(bounds.Dx()),
+			(shape.y-shape.h/2.0)*float64(bounds.Dy()),
+			shape.w*float64(bounds.Dx()),
+			shape.h*float64(bounds.Dy()),
 		)
 		dc.SetRGBA(shape.r, shape.g, shape.b, 0.5)
 		dc.Fill()
@@ -171,7 +175,8 @@ func generateShape() Shape {
 	return Shape{
 		x: rand.Float64(),
 		y: rand.Float64(),
-		s: rand.Float64() * 0.5,
+		w: rand.Float64(),
+		h: rand.Float64(),
 		r: rand.Float64(),
 		g: rand.Float64(),
 		b: rand.Float64(),
