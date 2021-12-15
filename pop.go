@@ -12,10 +12,10 @@ import (
 	"github.com/fogleman/gg"
 )
 
-const populationSize = 400
-const geneLength = 16
-const mutationRate = 0.02
-const generations = 1000
+const populationSize = 50
+const geneLength = 4
+const mutationRate = 0.1
+const generations = 10000
 
 type Shape struct {
 	x, y, s float64
@@ -28,14 +28,12 @@ type Dna struct {
 }
 
 func (a *Dna) Combine(b *Dna) Dna {
-	fac := rand.Float64()
-
 	c := Dna{
 		genes: make([]Shape, len(a.genes)),
 	}
 
 	for i := 0; i < geneLength; i++ {
-		if rand.Float64() < fac {
+		if rand.Float64() < 0.5 {
 			c.genes[i] = a.genes[i]
 		} else {
 			c.genes[i] = b.genes[i]
@@ -62,6 +60,7 @@ func (dna *Dna) Render(dc *gg.Context) {
 			shape.y*float64(bounds.Dy()),
 			shape.s*float64(bounds.Dy()),
 		)
+		dc.SetRGBA(shape.r, shape.g, shape.b, 0.5)
 		dc.Fill()
 	}
 }
@@ -91,10 +90,16 @@ func main() {
 	for gen := 1; gen <= generations; gen++ {
 		// Calculate fitness
 		total := 0.0
+		best := 0.0
+		best_i := 0
 		for i := range pop {
 			test := gg.NewContextForImage(dc.Image())
 			pop[i].Render(test)
 			pop[i].f = fitness(test.Image(), goal)
+			if pop[i].f > best {
+				best = pop[i].f
+				best_i = i
+			}
 			total += pop[i].f
 		}
 
@@ -144,7 +149,7 @@ func generateShape() Shape {
 	return Shape{
 		x: rand.Float64(),
 		y: rand.Float64(),
-		s: rand.Float64() * 0.5,
+		s: rand.Float64()*0.5 + 0.1,
 		r: rand.Float64(),
 		g: rand.Float64(),
 		b: rand.Float64(),
