@@ -106,10 +106,12 @@ func main() {
 			pop[i].f = sum
 		}
 
-		if gen%10 == 0 {
+		// Output
+		if gen == generations || gen&(gen-1) == 0 {
 			out := gg.NewContextForImage(dc.Image())
-			pop[populationSize-1].Render(out)
+			pop[best_i].Render(out)
 			out.SavePNG("out/gen" + strconv.Itoa(gen) + ".png")
+			print(".")
 		}
 
 		// Create new population
