@@ -4,6 +4,10 @@ Genetic algorithm to approximate a target image using semi-transparent rectangle
 
 Inspired by [this blog post](https://rogerjohansson.blog/2008/12/07/genetic-programming-evolution-of-mona-lisa/) and [this book](https://natureofcode.com/book/chapter-9-the-evolution-of-code/).
 
+## Usage
+
+`go run pop.go -i "input.jpg"`
+
 ## How it works
 
 1. Generate a number of DNA elements with randomly sized and colored rectangles.
@@ -26,7 +30,7 @@ On the other hand, it can replicate a red square quite easily:
 ![red square](samples/red.jpg)
 ![red square](samples/red_example.png)
 
-And it gets quite close to the Windows XP wallpaper as well:
+And it gets pretty close to the Windows XP wallpaper as well:
 
 ![Windows XP wallpaper](samples/xp.jpg)
 ![almost Windows XP wallpaper](samples/xp_example.png)
